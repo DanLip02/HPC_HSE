@@ -40,7 +40,6 @@ void matrixMultiplyCUDAStreams(double *A, double *B, double *C, int N) {
     cudaMalloc((void **)&d_B, N * N * sizeof(double));
     cudaMalloc((void **)&d_C, N * N * sizeof(double));
 
-    const int numStreams = 4;  // Выберите число потоков
     cudaStream_t streams[numStreams];
 
     for (int i = 0; i < numStreams; ++i) {
