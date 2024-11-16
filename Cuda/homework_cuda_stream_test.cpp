@@ -9,12 +9,12 @@
 #define BLOCK_SIZE 2
 #define numStreams 2
 
-__global__ void matrixMultiplyKernel(double* A, double* B, double* C) {
+__global__ void matrixMultiplyKernel(double* A, double* B, double* C, int chunkSize) {
     int row = blockIdx.y * BLOCK_SIZE + threadIdx.y;
     int col = blockIdx.x * BLOCK_SIZE + threadIdx.x;
 
     double sum = 0.0;
-    if (row < N && col < N) {
+    if (row < N && col < chunkSize) {
         for (int i = 0; i < N; ++i) {
             sum += A[row +  N * i] * B[i +  N * col];
         }
@@ -97,12 +97,12 @@ void matrixMultiplyWithStreams(double *A, double *B, double *C) {
 
     for (int i = 0; i < numStreams; ++i) {
         int offset = i * chunkSize * N;
-        cudaMemcpyAsync(d_A + offset, A + offset, N * N * sizeof(double), cudaMemcpyHostToDevice, streams[i]);
-        cudaMemcpyAsync(d_B + offset, B + offset, N * N * sizeof(double), cudaMemcpyHostToDevice, streams[i]);
+        cudaMemcpyAsync(d_A, A, N * N * sizeof(double), cudaMemcpyHostToDevice, streams[i]);
+        cudaMemcpyAsync(d_B + offset, B + offset, chunkSize * N * sizeof(double), cudaMemcpyHostToDevice, streams[i]);
 
-        matrixMultiplyKernel<<<gridSize, blockSize, 0, streams[i]>>>(d_A, d_B, d_C);
+        matrixMultiplyKernel<<<gridSize, blockSize, 0, streams[i]>>>(d_A, d_B + offset, d_C + offset, chunkSize);
 
-        cudaMemcpyAsync(C + offset, d_C + offset, N * N * sizeof(double), cudaMemcpyDeviceToHost, streams[i]);
+        cudaMemcpyAsync(C + offset, d_C + offset, chunkSize * N * sizeof(double), cudaMemcpyDeviceToHost, streams[i]);
     }
 
     for (int i = 0; i < numStreams; ++i) {
